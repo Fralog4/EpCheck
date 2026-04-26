@@ -11,44 +11,57 @@ export default function App() {
         <aside className="sidebar">
           <div className="sidebar-brand">
             <div className="brand-icon">🔬</div>
-            <h1>EpsteinLens</h1>
+            <div>
+              <h1>EpsteinLens</h1>
+              <span style={{
+                fontSize: 10,
+                color: 'var(--text-muted)',
+                fontWeight: 500,
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase' as const,
+              }}>OSINT Intelligence</span>
+            </div>
           </div>
 
-          <NavLink
-            to="/"
-            end
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', padding: '0 16px', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}>
+            Workspace
+          </div>
+
+          <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <span className="nav-icon">📄</span>
-            Upload
+            <span>Upload</span>
           </NavLink>
 
-          <NavLink
-            to="/analyze"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
+          <NavLink to="/analyze" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <span className="nav-icon">🔍</span>
-            Risk Analysis
+            <span>Risk Analysis</span>
           </NavLink>
 
-          <NavLink
-            to="/network"
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-          >
+          <NavLink to="/network" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <span className="nav-icon">🕸️</span>
-            Network Explorer
+            <span>Network Explorer</span>
           </NavLink>
 
           <div style={{ flex: 1 }} />
 
           <div style={{
-            padding: '12px 16px',
-            fontSize: 11,
+            padding: '14px 16px',
+            fontSize: 10,
             color: 'var(--text-muted)',
             borderTop: '1px solid var(--border-subtle)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
           }}>
-            OSINT Fact-Checking Tool<br />
-            v0.1.0-alpha
+            <span style={{ fontWeight: 500 }}>v0.1.0-alpha</span>
+            <span style={{
+              padding: '2px 8px',
+              background: 'var(--risk-green-bg)',
+              color: 'var(--risk-green)',
+              borderRadius: 100,
+              fontSize: 9,
+              fontWeight: 700,
+            }}>ONLINE</span>
           </div>
         </aside>
 

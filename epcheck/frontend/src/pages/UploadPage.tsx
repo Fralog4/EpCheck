@@ -48,13 +48,13 @@ export default function UploadPage() {
         onDrop={onDrop}
         onClick={() => fileRef.current?.click()}
       >
-        <div className="upload-icon">📎</div>
-        <h3>{loading ? 'Processing...' : 'Drop PDF here or click to browse'}</h3>
+        <span className="upload-icon">📎</span>
+        <h3>{loading ? 'Processing document...' : 'Drop PDF here or click to browse'}</h3>
         <p>Supports depositions, flight logs, and email chains</p>
         {loading && (
-          <div className="loading-spinner" style={{ marginTop: 16 }}>
+          <div className="loading-spinner" style={{ marginTop: 20 }}>
             <div className="spinner" />
-            Extracting entities...
+            Extracting entities with NER pipeline...
           </div>
         )}
       </div>
@@ -69,16 +69,25 @@ export default function UploadPage() {
 
       {error && (
         <div className="card fade-in" style={{ marginTop: 24, borderColor: 'var(--risk-red)' }}>
-          <p style={{ color: 'var(--risk-red)' }}>⚠️ {error}</p>
+          <p style={{ color: 'var(--risk-red)', fontSize: 13 }}>⚠️ {error}</p>
         </div>
       )}
 
       {report && (
         <div className="card fade-in" style={{ marginTop: 24 }}>
-          <h3 style={{ marginBottom: 4 }}>✅ Ingestion Complete</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
-            {report.filename}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <span style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'var(--risk-green-bg)', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', fontSize: 16,
+            }}>✅</span>
+            <div>
+              <h3 style={{ fontSize: 16, fontWeight: 700 }}>Ingestion Complete</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: 12, fontFamily: "'JetBrains Mono', monospace" }}>
+                {report.filename}
+              </p>
+            </div>
+          </div>
           <div className="report-card">
             <div className="report-stat">
               <div className="stat-value">{report.status}</div>
@@ -93,8 +102,8 @@ export default function UploadPage() {
               <div className="stat-label">Persons Found</div>
             </div>
             <div className="report-stat">
-              <div className="stat-value" style={{ fontSize: 12, wordBreak: 'break-all' }}>
-                {report.fileHash.substring(0, 16)}...
+              <div className="stat-value" style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>
+                {report.fileHash.substring(0, 12)}…
               </div>
               <div className="stat-label">SHA-256</div>
             </div>
