@@ -1,6 +1,7 @@
 package com.source.epcheck.controller
 
 import com.source.epcheck.dto.IngestionReport
+import com.source.epcheck.dto.NetworkReportDTO
 import com.source.epcheck.dto.RiskReportDTO
 import com.source.epcheck.service.AnalysisService
 import com.source.epcheck.service.DocumentIngestionService
@@ -26,6 +27,12 @@ class EpsteinLensController(
     @GetMapping("/analyze/{name}")
     fun analyzeProfile(@PathVariable name: String): ResponseEntity<RiskReportDTO> {
         val report = analysisService.analyzeProfile(name)
+        return ResponseEntity.ok(report)
+    }
+
+    @GetMapping("/network/{name}")
+    fun analyzeNetwork(@PathVariable name: String): ResponseEntity<NetworkReportDTO> {
+        val report = analysisService.analyzeNetwork(name)
         return ResponseEntity.ok(report)
     }
 }

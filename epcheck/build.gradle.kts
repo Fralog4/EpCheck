@@ -40,6 +40,10 @@ dependencies {
 	// 4. OpenAPI / Swagger UI
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 
+	// 5. Tesseract OCR (scanned PDF fallback)
+	implementation("net.sourceforge.tess4j:tess4j:5.18.0")
+
+
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 	testImplementation("org.springframework.boot:spring-boot-starter-data-neo4j-test")
