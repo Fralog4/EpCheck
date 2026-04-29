@@ -37,6 +37,40 @@ class NERService(
     /** Supported entity types for extraction. */
     companion object {
         val SUPPORTED_ENTITY_TYPES = setOf("PERSON", "ORGANIZATION")
+
+        /** Words that commonly trigger false positive NER hits in flight logs. */
+        private val BLACKLIST = setOf(
+                "ma", "fl", "ny", "nj", "ca", "tx", "pa", "il", "oh", "ga", "va", // States
+                "na", "n/a", "date", "pilot", "copilot", "pax", "total", "page", // Technical terms
+                "origin", "destination", "departure", "arrival", "from", "to",
+                "aircraft", "flight", "owner", "remarks", "p", "o", "m" // Short noise
+        )
+
+        /** Entities that should never be ignored even if short. */
+        private val WHITELIST = setOf("jack", "al") // Example: actual names/initials that are valid
+    }
+
+    /**
+     * Checks if an entity mention should be filtered out.
+     */
+    private fun isInvalidEntity(text: String): Boolean {
+        val lower = text.trim().lowercase()
+        // 1. Blacklist check
+        if (lower in BLACKLIST && lower !in WHITELIST) {
+            logger.debug { "Ignoring blacklisted entity: '$text'" }
+            return true
+        }
+        // 2. Length check (ignore single letters or very short noise)
+        if (text.length < 3 && lower !in WHITELIST) {
+            logger.debug { "Ignoring short entity: '$text'" }
+            return true
+        }
+        // 3. Pattern check (ignore entries that are just digits or special chars)
+        if (text.matches(Regex("[^a-zA-Z\\s\\.]+"))) {
+            logger.debug { "Ignoring non-alpha entity: '$text'" }
+            return true
+        }
+        return false
     }
 
     /**
@@ -53,7 +87,7 @@ class NERService(
         pipeline.annotate(document)
 
         return document.entityMentions()
-                .filter { it.entityType() == "PERSON" }
+                .filter { it.entityType() == "PERSON" && !isInvalidEntity(it.text()) }
                 .map { mention ->
                     val confidence = mention.entityTypeConfidences()
                             ?.getOrDefault("PERSON", 0.0) ?: 0.0
@@ -77,7 +111,7 @@ class NERService(
         pipeline.annotate(document)
 
         return document.entityMentions()
-                .filter { it.entityType() in SUPPORTED_ENTITY_TYPES }
+                .filter { it.entityType() in SUPPORTED_ENTITY_TYPES && !isInvalidEntity(it.text()) }
                 .map { mention ->
                     val type = mention.entityType()
                     val confidence = mention.entityTypeConfidences()

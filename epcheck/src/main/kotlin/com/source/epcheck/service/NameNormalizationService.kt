@@ -29,7 +29,21 @@ class NameNormalizationService {
      * @return the canonical normalized name
      */
     fun normalize(raw: String): String {
-        val lower = raw.trim().lowercase()
+        // Pre-processing: Clean and handle inversions
+        var cleaned = raw.trim()
+                .replace(Regex("^(Mr\\.?|Dr\\.?|Capt\\.?|President|Mrs\\.?|Ms\\.?)\\s+", RegexOption.IGNORE_CASE), "")
+        
+        // Handle "Lastname Firstname" (e.g. "Visoski Larry")
+        // Heuristic: If name is exactly 2 words and contains no comma, try reversing it
+        val words = cleaned.split("\\s+".toRegex())
+        if (words.size == 2 && !cleaned.contains(",")) {
+            val reversed = "${words[1]} ${words[0]}".lowercase()
+            if (ALIAS_TO_CANONICAL.containsKey(reversed)) {
+                cleaned = reversed
+            }
+        }
+
+        val lower = cleaned.lowercase()
 
         // Tier 1: Exact alias lookup
         ALIAS_TO_CANONICAL[lower]?.let { canonical ->
@@ -178,6 +192,15 @@ class NameNormalizationService {
                 ),
                 "kevin edward spacey fowler" to listOf(
                         "kevin spacey", "k. spacey"
+                ),
+                "larry l. visoski" to listOf(
+                        "larry visoski", "lawrence visoski", "captain visoski", "l. visoski"
+                ),
+                "glenn dubin" to listOf(
+                        "glen dubin", "g. dubin", "dubin"
+                ),
+                "leslie groff" to listOf(
+                        "les groff", "l. groff"
                 )
         )
 

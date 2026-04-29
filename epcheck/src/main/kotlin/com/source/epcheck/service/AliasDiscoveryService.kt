@@ -43,37 +43,46 @@ class AliasDiscoveryService(
         }
 
         for ((nameA, nameB) in pairs) {
-            // Strategy 1: Shared surname detection
-            val surnameA = nameA.trim().split("\\s+".toRegex()).lastOrNull()?.lowercase() ?: continue
-            val surnameB = nameB.trim().split("\\s+".toRegex()).lastOrNull()?.lowercase() ?: continue
+            // Strategy 1: Shared surname detection (handles inversions)
+            val partsA = nameA.trim().lowercase().split("\\s+".toRegex())
+            val partsB = nameB.trim().lowercase().split("\\s+".toRegex())
+            
+            val potentialSurnamesA = setOf(partsA.first(), partsA.last())
+            val potentialSurnamesB = setOf(partsB.first(), partsB.last())
+            
+            val commonSurname = potentialSurnamesA.intersect(potentialSurnamesB)
+                .filter { it.length > 2 } // Avoid short initials matching
+                .firstOrNull()
 
-            if (surnameA == surnameB && nameA != nameB) {
+            if (commonSurname != null && nameA != nameB) {
                 val shorter = if (nameA.length < nameB.length) nameA else nameB
                 val longer = if (nameA.length < nameB.length) nameB else nameA
-                addSuggestion(shorter, longer, 0.85, "Shared surname: '$surnameA'")
+                addSuggestion(shorter, longer, 0.85, "Shared surname: '$commonSurname'")
                 continue
             }
 
             // Strategy 2: Single-word name near a multi-word name
-            val wordsA = nameA.trim().split("\\s+".toRegex())
-            val wordsB = nameB.trim().split("\\s+".toRegex())
+            val surnameA = partsA.last()
+            val surnameB = partsB.last()
 
-            if (wordsA.size == 1 && wordsB.size > 1 && surnameB == wordsA[0].lowercase()) {
+            if (partsA.size == 1 && partsB.size > 1 && surnameB == partsA[0]) {
                 // e.g., "Clinton" appearing near "Bill Clinton"
                 addSuggestion(nameA, nameB, 0.75, "Single name matches surname")
-            } else if (wordsB.size == 1 && wordsA.size > 1 && surnameA == wordsB[0].lowercase()) {
+            } else if (partsB.size == 1 && partsA.size > 1 && surnameA == partsB[0]) {
                 addSuggestion(nameB, nameA, 0.75, "Single name matches surname")
             }
 
             // Strategy 3: Proximity-based linkage
-            if (wordsA.size == 1 || wordsB.size == 1) {
+            if (partsA.size == 1 || partsB.size == 1) {
                 val idxA = pageText.indexOf(nameA)
                 val idxB = pageText.indexOf(nameB)
                 if (idxA >= 0 && idxB >= 0 && kotlin.math.abs(idxA - idxB) < 200) {
-                    val single = if (wordsA.size == 1) nameA else nameB
-                    val multi = if (wordsA.size == 1) nameB else nameA
+                    val single = if (partsA.size == 1) nameA else nameB
+                    val multi = if (partsA.size == 1) nameB else nameA
                     if (single != multi) {
-                        addSuggestion(single, multi, 0.60, "Proximity (<200 chars)")
+                        // Boost confidence if the multi-word name is already canonical
+                        val baseConfidence = if (partsA.size > 1 && partsB.size > 1) 0.80 else 0.50
+                        addSuggestion(single, multi, baseConfidence, "Proximity (<200 chars)")
                     }
                 }
             }
