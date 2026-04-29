@@ -37,12 +37,12 @@ class FlightLogParserService {
 
     // ── Origin patterns ──
     private val originPattern = Regex(
-            """(?:Origin|From|Departure)\s*:\s*(.+)""", RegexOption.IGNORE_CASE
+            """(?:Origin|From|Departure)\s*:\s*([^\n\r]{1,100})""", RegexOption.IGNORE_CASE
     )
 
     // ── Destination patterns ──
     private val destinationPattern = Regex(
-            """(?:Destination|To|Arrival)\s*:\s*(.+)""", RegexOption.IGNORE_CASE
+            """(?:Destination|To|Arrival)\s*:\s*([^\n\r]{1,100})""", RegexOption.IGNORE_CASE
     )
 
     private val isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE

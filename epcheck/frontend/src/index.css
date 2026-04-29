@@ -770,3 +770,225 @@ body {
   background: rgba(99, 102, 241, 0.3);
   color: white;
 }
+
+/* ── Light Theme ── */
+[data-theme="light"] {
+  --bg-primary: #f5f5f9;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eeeef3;
+  --bg-card: rgba(0, 0, 0, 0.02);
+  --bg-card-hover: rgba(0, 0, 0, 0.04);
+  --bg-glass: rgba(0, 0, 0, 0.03);
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-glow: rgba(99, 102, 241, 0.4);
+  --text-primary: #1a1a2e;
+  --text-secondary: #555570;
+  --text-muted: #8888a0;
+  --shadow-glow: 0 0 60px rgba(99, 102, 241, 0.05);
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] body { background: var(--bg-primary); }
+[data-theme="light"] .sidebar { background: var(--bg-secondary); box-shadow: 2px 0 12px rgba(0,0,0,0.04); }
+[data-theme="light"] .sidebar-brand h1 { background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; background-clip: text; }
+[data-theme="light"] .search-input { background: #fff; border-color: rgba(0,0,0,0.1); }
+[data-theme="light"] .search-input:focus { background: #fff; }
+[data-theme="light"] .evidence-item { background: #fff; }
+[data-theme="light"] .report-stat { background: #fff; }
+[data-theme="light"] .graph-container { background: #fff; box-shadow: inset 0 0 40px rgba(0,0,0,0.03); }
+[data-theme="light"] .graph-legend { background: rgba(255,255,255,0.95); }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); }
+
+/* ── Theme Toggle ── */
+.theme-toggle {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: 10px;
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  color: var(--text-secondary); cursor: pointer;
+  font-size: 13px; font-weight: 500; font-family: inherit;
+  transition: all var(--transition-fast); width: 100%;
+}
+.theme-toggle:hover { background: var(--bg-card-hover); color: var(--text-primary); }
+.theme-toggle .toggle-icon { font-size: 16px; width: 22px; text-align: center; }
+
+/* ── Progress Stepper ── */
+.progress-stepper { display: flex; align-items: center; justify-content: center; gap: 0; margin-top: 24px; padding: 0 20px; }
+.step { display: flex; align-items: center; gap: 0; }
+.step-circle {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  border: 2px solid var(--border-subtle); color: var(--text-muted);
+  background: var(--bg-secondary); transition: all 0.4s ease; flex-shrink: 0;
+}
+.step.active .step-circle {
+  border-color: var(--accent); color: var(--accent-light);
+  box-shadow: 0 0 16px var(--accent-glow-strong);
+  animation: stepPulse 1.5s ease-in-out infinite;
+}
+.step.completed .step-circle {
+  border-color: var(--risk-green); background: var(--risk-green);
+  color: #fff; box-shadow: 0 0 12px rgba(16,185,129,0.3);
+}
+.step-label {
+  font-size: 10px; color: var(--text-muted); margin-top: 6px;
+  text-align: center; font-weight: 600; letter-spacing: 0.3px;
+  max-width: 80px; line-height: 1.3;
+}
+.step.active .step-label { color: var(--accent-light); }
+.step.completed .step-label { color: var(--risk-green); }
+.step-info { display: flex; flex-direction: column; align-items: center; }
+.step-connector {
+  width: 40px; height: 2px; background: var(--border-subtle);
+  transition: background 0.4s ease; margin: 0 4px; flex-shrink: 0;
+}
+.step.completed + .step-connector, .step-connector.done { background: var(--risk-green); }
+@keyframes stepPulse {
+  0%, 100% { box-shadow: 0 0 16px var(--accent-glow); }
+  50% { box-shadow: 0 0 28px var(--accent-glow-strong); }
+}
+
+/* ── Evidence Highlight ── */
+.highlight-entity {
+  background: var(--accent-glow-strong); color: var(--accent-light);
+  padding: 1px 5px; border-radius: 4px; font-weight: 600;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* ── Export Toolbar ── */
+.export-toolbar { display: flex; gap: 10px; margin-top: 16px; }
+.btn-secondary {
+  padding: 10px 18px; border-radius: var(--radius-md);
+  font-size: 12px; font-weight: 600; font-family: inherit;
+  cursor: pointer; border: 1px solid var(--border-subtle);
+  background: var(--bg-card); color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-secondary:hover {
+  background: var(--bg-card-hover); color: var(--text-primary);
+  border-color: var(--border-glow); transform: translateY(-1px);
+}
+
+/* ── Graph Overview Stats ── */
+.graph-overview-stats {
+  display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+}
+
+/* ── Sidebar Toggle (Mobile) ── */
+.sidebar-toggle {
+  display: none; position: fixed; top: 14px; left: 14px; z-index: 200;
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--bg-secondary); border: 1px solid var(--border-subtle);
+  color: var(--text-primary); cursor: pointer;
+  font-size: 18px; align-items: center; justify-content: center;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 64px; padding: 20px 8px;
+  }
+  .sidebar-brand { padding: 4px 0 16px; justify-content: center; }
+  .sidebar-brand > div:last-child { display: none; }
+  .sidebar .nav-link span:last-child { display: none; }
+  .sidebar .nav-link { justify-content: center; padding: 12px; }
+  .sidebar .nav-link .nav-icon { margin: 0; }
+  .sidebar [style*="Workspace"] { display: none; }
+  .theme-toggle span:not(.toggle-icon) { display: none; }
+  .theme-toggle { justify-content: center; padding: 10px; }
+  .main-content { margin-left: 64px; padding: 28px 32px; }
+}
+
+@media (max-width: 768px) {
+  .sidebar-toggle { display: flex; }
+  .sidebar {
+    width: 260px; transform: translateX(-100%);
+    transition: transform 0.3s ease; z-index: 150;
+    box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-brand > div:last-child { display: block; }
+  .sidebar .nav-link span:last-child { display: inline; }
+  .sidebar .nav-link { justify-content: flex-start; padding: 11px 16px; }
+  .theme-toggle span:not(.toggle-icon) { display: inline; }
+  .theme-toggle { justify-content: flex-start; }
+  .main-content { margin-left: 0; padding: 24px 20px; padding-top: 64px; max-width: 100%; }
+  .report-card { grid-template-columns: repeat(2, 1fr); }
+  .network-stats { flex-wrap: wrap; }
+  .network-stat { min-width: 100px; flex: 1; }
+  .graph-container { height: 380px; }
+  .sidebar-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 140; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .sidebar-overlay.visible { opacity: 1; pointer-events: auto; }
+}
+
+@media (max-width: 480px) {
+  .main-content { padding: 16px 14px; padding-top: 60px; }
+  .page-header h2 { font-size: 20px; }
+  .upload-zone { padding: 40px 20px; }
+  .report-card { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .evidence-item { flex-direction: column; gap: 8px; }
+  .evidence-meta { width: 100%; }
+  .search-bar { flex-direction: column; }
+  .search-input { width: 100%; }
+  .export-toolbar { flex-direction: column; }
+  .progress-stepper { flex-wrap: wrap; gap: 8px; }
+  .step-connector { width: 20px; }
+}
+
+/* ── Timeline ── */
+.timeline {
+  position: relative;
+  padding-left: 8px;
+}
+
+.timeline-event {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 0;
+  position: relative;
+}
+
+.timeline-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 20px;
+}
+
+.timeline-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--bg-primary);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 12px var(--accent-glow);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.timeline-line {
+  width: 2px;
+  flex: 1;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--border-subtle) 100%);
+  min-height: 20px;
+}
+
+.timeline-content {
+  flex: 1;
+  margin-bottom: 16px;
+  padding: 16px 20px;
+}
+
+.timeline-content:hover {
+  transform: translateX(4px);
+}
+
+@media (max-width: 480px) {
+  .timeline-event { gap: 12px; }
+  .timeline-content { padding: 12px 14px; }
+}

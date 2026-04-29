@@ -21,31 +21,64 @@ EpsteinLens is a backend system that ingests unstructured legal documents (depos
 - **Full Graph Implementation** — `Person`, `Document`, `FlightLog` nodes and rich relationships (`MENTIONED_IN`, `FLEW_ON`) are fully modeled and operational using Spring Data Neo4j.
 - **Async Ingestion Engine** — `DocumentIngestionService` uses Kotlin Coroutines (`suspend` + `Dispatchers.IO`) to handle PDF parsing and NER without blocking.
 - **Risk Analysis Logic** — `AnalysisService` categorizes individuals into **RED / ORANGE / YELLOW / GREEN** risk levels based on flight logs, mention frequency, and keyword context.
+- **Batch Ingestion API** — New `POST /api/ingest/batch` endpoint accepting a ZIP file containing multiple PDFs, processing them sequentially and returning a detailed `BatchIngestionReport`.
+- **Temporal Analysis & Alias Auto-Discovery** — Added Timeline tracking to see when an entity appears over time, and an Alias suggestion engine detecting shared surnames and proximity names during ingestion.
+- **Relationship Strength Scoring** — Edges in the knowledge graph now have a computed strength score based on co-occurrence, shared flights, and sentiment overlap, visualized in the Network Explorer.
+- **Input Validation & Sanitization** — Added strict MIME type and Magic Byte checking for uploaded files, a 500-page limit per document, and text sanitization to protect the NER engine from malicious or malformed characters.
+- **Global Error Handling** — Added a Spring `@ControllerAdvice` global exception handler returning a standardized `ErrorDTO` for all API errors.
+- **Monitoring & Rate Limiting** — Added Spring Boot Actuator with Prometheus metrics (custom metrics for ingestion and NER), visualized via Grafana. Added an IP-based sliding-window `RateLimitFilter`.
+- **Production Docker & CI/CD** — Multi-stage Dockerfile, complete GitHub Actions workflow (lint → test → build → push), and a robust `compose.yaml` with profiles (`dev`, `staging`, `prod`).
+- **Event-Driven Ingestion (Kafka)** — Moved from blocking HTTP requests to async message-driven ingestion. Added `POST /api/ingest/async` returning a `jobId` immediately (202 Accepted), with background processing by a Kafka consumer and status polling via `GET /api/ingest/status/{jobId}`.
+- **Neo4j Graph Data Science (GDS)** — Integrated the GDS plugin to run advanced network algorithms. Exposed `GET /api/gds/pagerank` (to find central/influential figures) and `GET /api/gds/communities` (Louvain modularity to detect hidden syndicates).
 - **REST API** — Endpoints for document upload (`POST /api/ingest`) and profile analysis (`GET /api/analyze/{name}`) are exposed.
 - **Swagger UI** — Integrated OpenAPI 3 documentation, accessible at `/swagger-ui/index.html`.
-
 ## 🗺️ Roadmap
 
-### 🔴 Priority — Core Gaps
+### ✅ Completed
 
-- [x] **OCR for Scanned PDFs** — ~~Integrate Tesseract~~ `OcrService` with Tess4J renders pages at 300 DPI and runs Tesseract OCR as fallback when text extraction yields <20 chars.
-- [x] **Flight Log Parsing** — Parse actual dates, aircraft IDs, origins, and destinations from flight log text. ~~Currently uses `LocalDate.now()` and `"Unknown"` as placeholders.~~
-- [x] **Sentiment Analysis** — ~~Replace the `"NEUTRAL"` placeholder~~ Domain-specific keyword classifier (`ACCUSATORY` / `EXCULPATORY` / `INFORMATIONAL`) applied to every entity snippet during extraction.
-- [x] **Smarter Name Normalization** — ~~Replace the hardcoded 2-entry alias map~~ Two-tier strategy: alias database (12 individuals, ~50 variations) + Jaro-Winkler fuzzy matching (0.90 threshold) for typos/OCR artifacts.
+- [x] OCR for Scanned PDFs (Tess4J, 300 DPI fallback)
+- [x] Flight Log Parsing (regex: dates, aircraft IDs, origin/destination)
+- [x] Sentiment Analysis (keyword-based: ACCUSATORY / EXCULPATORY / INFORMATIONAL)
+- [x] Smarter Name Normalization (alias DB + Jaro-Winkler fuzzy matching)
+- [x] Network Depth Analysis (`GET /api/network/{name}` + multi-hop Cypher)
+- [x] Email Chain Classification (≥2 header keywords per page)
+- [x] Risk Score Persistence (write-back to `Person.riskScore`)
+- [x] NER Confidence Scoring (configurable threshold filter)
+- [x] Frontend Dashboard (Vite + React + TypeScript + Cytoscape.js)
 
-### 🟡 Priority — Enrichment & Intelligence
+---
 
-- [x] **Network Depth Analysis** — ~~Wire up `findNetworkDepth()`~~ New `GET /api/network/{name}` endpoint + multi-hop Cypher query `findConnectedPersons()`.
-- [x] **Email Chain Classification** — ~~Add heuristic patterns~~ Detects ≥2 email header keywords (`From:`, `To:`, `Subject:`, etc.) per page.
-- [x] **Risk Score Persistence** — ~~Never saved~~ `AnalysisService` writes back `Person.riskScore` after analysis. `RiskReportDTO` now includes `riskScore`.
-- [x] **Confidence Scoring** — ~~No filtering~~ `NERService.extractEntitiesWithConfidence()` returns `NerResult(name, confidence)`. Threshold configurable via `ner.confidence-threshold`.
+### 🔴 Priority — Production Hardening
 
-### 🟢 Priority — Production Readiness
+- [ ] **Unit & Integration Tests** — Add tests for `DocumentIngestionService`, `GraphPersistenceService`, `AnalysisService`, `NERService`, and the REST controller. Target ≥80% service-layer coverage.
+- [ ] **API Security** — Add Spring Security with JWT or API key authentication. Protect `POST /api/ingest` (write) and make `GET` endpoints optionally public.
+- [x] **Input Validation & Sanitization** — Validate uploaded file MIME type (reject non-PDF), enforce max page count, sanitize extracted text before NER to prevent injection.
+- [x] **Error Handling & API Responses** — Standardize error responses (`ErrorDTO` with code/message/timestamp), add global `@ControllerAdvice` exception handler.
 
-- [ ] **Unit & Integration Tests** — Only a skeleton test exists. Add tests for `DocumentIngestionService`, `GraphPersistenceService`, `AnalysisService`, and the REST controller.
-- [ ] **API Security** — Add Spring Security with JWT or API key authentication to protect ingestion/analysis endpoints.
-- [ ] **Production Docker Compose** — Add multi-stage Dockerfile, health checks, Neo4j volume mounts, and environment-based config profiles.
-- [x] **Frontend Dashboard** — ~~Build a web UI~~ Vite + React + TypeScript + Cytoscape.js SPA with 3 views: Upload, Risk Analysis, Network Explorer.
+### 🟡 Priority — Frontend Enhancements
+
+- [x] **Dark/Light Theme Toggle** — Theme switcher in the sidebar. Preference stored in `localStorage`.
+- [x] **Real-time Ingestion Progress** — Step-by-step progress indicator (Uploading → Extracting Text → Running NER → Persisting Graph).
+- [x] **Evidence Highlighting** — Matched entity names highlighted in evidence snippets with accent color.
+- [x] **Graph Overview Page** — Full knowledge graph visualization of all persons/documents. New `GET /api/graph` backend endpoint.
+- [x] **Export to PDF/CSV** — "Export Report" buttons on Risk Analysis page (CSV download + PDF print).
+- [x] **Responsive Layout** — Mobile/tablet breakpoints. Sidebar collapses to icon-only on tablet, drawer on mobile.
+
+### 🟠 Priority — Intelligence Pipeline
+
+- [x] **Organization Entity Extraction** — Extend NER to extract `ORGANIZATION` entities (companies, foundations) alongside `PERSON`.
+- [x] **Temporal Analysis** — Timeline view showing when a person appears across documents over time.
+- [x] **Relationship Strength Scoring** — Weight connections by co-occurrence frequency, shared flight count, and sentiment overlap.
+- [x] **Alias Auto-Discovery** — Use NER context to suggest potential aliases (e.g., "Bill" near "Clinton" → link to canonical name).
+- [x] **Multi-Language OCR** — Support French, Spanish, and other languages in Tesseract for international documents.
+
+### 🟢 Priority — Scalability & DevOps
+
+- [x] **Production Docker Compose** — Multi-stage Dockerfile, health checks, Neo4j volume mounts, and environment-based config profiles (`dev`, `staging`, `prod`).
+- [x] **CI/CD Pipeline** — GitHub Actions workflow: lint → test → build → Docker push.
+- [x] **Batch Ingestion API** — `POST /api/ingest/batch` endpoint accepting a ZIP of multiple PDFs for bulk processing.
+- [x] **Monitoring & Observability** — Spring Boot Actuator + Prometheus metrics + Grafana dashboard for ingestion throughput and NER latency.
+- [x] **Rate Limiting** — Add rate limiting on ingestion endpoint to prevent abuse (e.g., 10 uploads/minute per API key).
 
 ---
 
@@ -135,9 +168,14 @@ epcheck/
 └── src/main/kotlin/com/source/epcheck/
     ├── EpcheckApplication.kt             # Spring Boot entry point
     ├── config/
-    │   └── AppConfig.kt                  # OpenAPI bean + @EnableResilientMethods
+    │   ├── AppConfig.kt                  # OpenAPI bean + @EnableResilientMethods
+    │   ├── IngestionMetrics.kt           # Custom Micrometer metrics
+    │   ├── KafkaConfig.kt                # Topic and broker configuration
+    │   └── RateLimitFilter.kt            # IP-based rate limiter
     ├── controller/
-    │   └── EpsteinLensController.kt      # REST endpoints (/api/ingest, /api/analyze)
+    │   ├── EpsteinLensController.kt      # REST endpoints (Sync/Async ingest, analyze, etc.)
+    │   ├── GdsController.kt              # REST endpoints for PageRank and Louvain communities
+    │   └── GlobalExceptionHandler.kt     # @ControllerAdvice for global error routing
     ├── domain/
     │   ├── Document.kt                   # Document node + DocType enum
     │   ├── Person.kt                     # Person node with relationship mappings
@@ -145,7 +183,8 @@ epcheck/
     │   ├── MentionedIn.kt                # MENTIONED_IN relationship properties
     │   └── FlewOn.kt                     # FLEW_ON relationship properties
     ├── dto/
-    │   └── DTOs.kt                       # IngestionReport, RiskReportDTO, EvidenceItem
+    │   ├── DTOs.kt                       # IngestionReport, RiskReportDTO, EvidenceItem, Timeline, Batch
+    │   └── ErrorDTO.kt                   # Standardized error response format
     ├── repository/
     │   ├── DocumentRepository.kt         # Neo4jRepository<Document, String>
     │   ├── PersonRepository.kt           # Includes findByNormalizedName + batch fetch
@@ -157,8 +196,14 @@ epcheck/
         ├── FlightLogParserService.kt     # Regex-based flight data extraction
         ├── SentimentClassifierService.kt # Keyword-based snippet sentiment
         ├── NameNormalizationService.kt   # Alias DB + Jaro-Winkler fuzzy matching
-        ├── NERService.kt                 # Stanford CoreNLP wrapper
-        └── AnalysisService.kt            # Risk classification logic
+        ├── AliasDiscoveryService.kt      # Proximity and surname alias suggestion
+        ├── NERService.kt                 # Stanford CoreNLP wrapper (PERSON, ORGANIZATION)
+        ├── AnalysisService.kt            # Risk classification logic, relationship strength
+        ├── GdsService.kt                 # Executes Neo4j Graph Data Science algorithms
+        ├── IngestionProducer.kt          # Kafka producer for async ingestion jobs
+        ├── IngestionConsumer.kt          # Kafka consumer for background processing
+        ├── JobStatusService.kt           # Tracks async job states
+        └── Exceptions.kt                 # Domain exceptions for validation failures
 ```
 
 ## 🚀 How to Run

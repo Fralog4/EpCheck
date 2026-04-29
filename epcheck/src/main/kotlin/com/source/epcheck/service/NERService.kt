@@ -23,12 +23,20 @@ class NERService(
         // Efficient configuration: tokenize, ssplit, pos, lemma, ner
         // Avoid 'parse', 'sentiment' to keep memory usage low
         props.setProperty("annotators", "tokenize,ssplit,pos,lemma,ner")
+        props.setProperty("pos.model", "edu/stanford/nlp/models/pos-tagger/english-caseless-left3words-distsim.tagger")
+        props.setProperty("ner.model", "edu/stanford/nlp/models/ner/english.all.3class.caseless.distsim.crf.ser.gz")
+        props.setProperty("ner.useSUTime", "false")
         props.setProperty(
                 "ner.applyFineGrained",
                 "false"
         ) // We only need PERSON, ORGANIZATION, etc.
         pipeline = StanfordCoreNLP(props)
         logger.info { "Stanford CoreNLP initialized successfully." }
+    }
+
+    /** Supported entity types for extraction. */
+    companion object {
+        val SUPPORTED_ENTITY_TYPES = setOf("PERSON", "ORGANIZATION")
     }
 
     /**
@@ -49,23 +57,50 @@ class NERService(
                 .map { mention ->
                     val confidence = mention.entityTypeConfidences()
                             ?.getOrDefault("PERSON", 0.0) ?: 0.0
-                    NerResult(name = mention.text(), confidence = confidence)
+                    NerResult(name = mention.text(), confidence = confidence, entityType = "PERSON")
                 }
                 .filter { it.confidence >= confidenceThreshold }
                 .distinctBy { it.name }
     }
 
     /**
-     * Legacy method for backward compatibility — returns names only.
+     * Extracts both PERSON and ORGANIZATION entities from text with confidence scores.
+     * Entities below [confidenceThreshold] are filtered out.
+     *
+     * @param text the page text to analyze
+     * @return list of [NerResult] with name, confidence, and entityType
+     */
+    fun extractAllEntitiesWithConfidence(text: String): List<NerResult> {
+        if (text.isBlank()) return emptyList()
+
+        val document = CoreDocument(text)
+        pipeline.annotate(document)
+
+        return document.entityMentions()
+                .filter { it.entityType() in SUPPORTED_ENTITY_TYPES }
+                .map { mention ->
+                    val type = mention.entityType()
+                    val confidence = mention.entityTypeConfidences()
+                            ?.getOrDefault(type, 0.0) ?: 0.0
+                    NerResult(name = mention.text(), confidence = confidence, entityType = type)
+                }
+                .filter { it.confidence >= confidenceThreshold }
+                .groupBy { "${it.entityType}:${it.name}" }
+                .mapNotNull { (_, entities) -> entities.maxByOrNull { it.confidence } }
+    }
+
+    /**
+     * Legacy method for backward compatibility — returns PERSON names only.
      */
     fun extractEntities(text: String): List<String> =
             extractEntitiesWithConfidence(text).map { it.name }
 }
 
 /**
- * A named entity extraction result with its confidence score.
+ * A named entity extraction result with its confidence score and entity type.
  */
 data class NerResult(
         val name: String,
-        val confidence: Double
+        val confidence: Double,
+        val entityType: String = "PERSON"
 )

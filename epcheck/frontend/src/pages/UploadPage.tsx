@@ -1,21 +1,65 @@
-import { useState, useRef, type DragEvent } from 'react';
+import { useState, useRef, useEffect, type DragEvent } from 'react';
 import { ingestDocument, type IngestionReport } from '../api';
+
+const STEPS = ['Uploading', 'Extracting Text', 'Running NER', 'Persisting Graph'];
+
+function ProgressStepper({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="progress-stepper">
+      {STEPS.map((label, i) => {
+        const status = i < currentStep ? 'completed' : i === currentStep ? 'active' : '';
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+            <div className={`step ${status}`}>
+              <div className="step-info">
+                <div className="step-circle">
+                  {i < currentStep ? '✓' : i + 1}
+                </div>
+                <div className="step-label">{label}</div>
+              </div>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`step-connector ${i < currentStep ? 'done' : ''}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function UploadPage() {
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const [report, setReport] = useState<IngestionReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    return () => timerRef.current.forEach(clearTimeout);
+  }, []);
 
   const handleFile = async (file: File) => {
     setLoading(true);
     setError(null);
     setReport(null);
+    setCurrentStep(0);
+
+    // Simulate step progression
+    timerRef.current = [];
+    timerRef.current.push(setTimeout(() => setCurrentStep(1), 800));
+    timerRef.current.push(setTimeout(() => setCurrentStep(2), 2500));
+    timerRef.current.push(setTimeout(() => setCurrentStep(3), 4500));
+
     try {
       const result = await ingestDocument(file);
+      timerRef.current.forEach(clearTimeout);
+      setCurrentStep(4); // All done
       setReport(result);
     } catch (e: unknown) {
+      timerRef.current.forEach(clearTimeout);
       setError(e instanceof Error ? e.message : 'Upload failed');
     } finally {
       setLoading(false);
@@ -51,12 +95,7 @@ export default function UploadPage() {
         <span className="upload-icon">📎</span>
         <h3>{loading ? 'Processing document...' : 'Drop PDF here or click to browse'}</h3>
         <p>Supports depositions, flight logs, and email chains</p>
-        {loading && (
-          <div className="loading-spinner" style={{ marginTop: 20 }}>
-            <div className="spinner" />
-            Extracting entities with NER pipeline...
-          </div>
-        )}
+        {loading && <ProgressStepper currentStep={currentStep} />}
       </div>
 
       <input
@@ -100,6 +139,10 @@ export default function UploadPage() {
             <div className="report-stat">
               <div className="stat-value">{report.extractedPersonCount}</div>
               <div className="stat-label">Persons Found</div>
+            </div>
+            <div className="report-stat">
+              <div className="stat-value">{report.extractedOrgCount}</div>
+              <div className="stat-label">Orgs Found</div>
             </div>
             <div className="report-stat">
               <div className="stat-value" style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace" }}>

@@ -14,8 +14,9 @@ import org.springframework.stereotype.Service
  * Used as a fallback when PDFBox's `PDFTextStripper` extracts little or
  * no text from a page (indicating a scanned/image-based document).
  *
- * Tess4J bundles native Tesseract libraries for Windows/Linux/Mac and
- * includes English trained data out of the box.
+ * Supports multi-language OCR via the `ocr.language` property.
+ * Use `+` to combine languages: `eng+fra+spa` for English + French + Spanish.
+ * Requires corresponding tessdata files to be installed.
  *
  * Configure the tessdata path via `ocr.tessdata-path` in application.properties
  * (defaults to Tess4J's bundled data).
@@ -31,9 +32,10 @@ class OcrService(
 
     @PostConstruct
     fun init() {
-        logger.info { "Initializing Tesseract OCR (language=$language)" }
+        val languages = language.replace(",", "+") // normalize comma-separated to Tesseract format
+        logger.info { "Initializing Tesseract OCR (languages=$languages)" }
         tesseract = Tesseract()
-        tesseract.setLanguage(language)
+        tesseract.setLanguage(languages)
 
         if (tessdataPath.isNotBlank()) {
             tesseract.setDatapath(tessdataPath)
@@ -45,7 +47,13 @@ class OcrService(
         // OCR Engine Mode 1 = LSTM neural net only (fastest + most accurate)
         tesseract.setOcrEngineMode(1)
 
-        logger.info { "Tesseract OCR initialized successfully." }
+        logger.info { "Tesseract OCR initialized successfully with language(s): $languages" }
+
+        // Log available languages info
+        val langList = languages.split("+")
+        if (langList.size > 1) {
+            logger.info { "Multi-language OCR enabled: ${langList.joinToString(", ")}" }
+        }
     }
 
     /**

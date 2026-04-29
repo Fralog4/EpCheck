@@ -31,8 +31,9 @@ dependencies {
 	implementation("org.apache.pdfbox:pdfbox:3.0.1")
 
 	// 2. Stanford CoreNLP (NER)
-	implementation("edu.stanford.nlp:stanford-corenlp:4.5.5")
-	implementation("edu.stanford.nlp:stanford-corenlp:4.5.5:models-english")
+	implementation("edu.stanford.nlp:stanford-corenlp:4.5.1")
+	implementation("edu.stanford.nlp:stanford-corenlp:4.5.1:models-english")
+	testImplementation("edu.stanford.nlp:stanford-corenlp:4.5.1:models-english")
 
 	// 3. Iconic Logging
 	implementation("io.github.oshai:kotlin-logging-jvm:5.1.0")
@@ -43,13 +44,24 @@ dependencies {
 	// 5. Tesseract OCR (scanned PDF fallback)
 	implementation("net.sourceforge.tess4j:tess4j:5.18.0")
 
+	// 6. Monitoring — Spring Boot Actuator + Prometheus
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("io.micrometer:micrometer-registry-prometheus")
+
+	// 7. Event-Driven Architecture — Kafka
+	implementation("org.springframework.kafka:spring-kafka")
 
 	developmentOnly("org.springframework.boot:spring-boot-devtools")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
+
+	// Test dependencies
 	testImplementation("org.springframework.boot:spring-boot-starter-data-neo4j-test")
-	testImplementation("org.springframework.boot:spring-boot-starter-web-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+	// MockMultipartFile for batch endpoint
+	implementation("org.springframework:spring-test")
 }
 
 kotlin {
@@ -60,4 +72,11 @@ kotlin {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	maxHeapSize = "2048m" // CoreNLP needs at least 1.5GB to load models comfortably
+}
+
+tasks.register<JavaExec>("verifyPdf") {
+	mainClass.set("com.source.epcheck.util.Verification")
+	classpath = sourceSets["test"].runtimeClasspath
+	jvmArgs("-Xmx2048m")
 }

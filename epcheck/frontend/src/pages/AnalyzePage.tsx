@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { analyzeProfile, type RiskReportDTO } from '../api';
 
 const riskColors: Record<string, string> = {
@@ -7,6 +7,63 @@ const riskColors: Record<string, string> = {
   YELLOW: 'var(--risk-yellow)',
   GREEN: 'var(--risk-green)',
 };
+
+/** Wraps occurrences of `name` in the snippet with <mark> tags */
+function highlightName(snippet: string, targetName: string): (string | React.JSX.Element)[] {
+  if (!targetName) return [snippet];
+  const parts: (string | React.JSX.Element)[] = [];
+  const regex = new RegExp(`(${targetName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(snippet)) !== null) {
+    if (match.index > lastIndex) parts.push(snippet.slice(lastIndex, match.index));
+    parts.push(<mark key={key++} className="highlight-entity">{match[1]}</mark>);
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < snippet.length) parts.push(snippet.slice(lastIndex));
+  return parts.length ? parts : [snippet];
+}
+
+function exportCSV(report: RiskReportDTO) {
+  const header = 'Source PDF,Page,Date,Snippet,Sentiment\n';
+  const rows = report.evidence.map(e =>
+    `"${e.sourcePdf}",${e.page},"${e.date || ''}","${e.snippet.replace(/"/g, '""')}","${e.sentiment || ''}"`
+  ).join('\n');
+  const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${report.targetName.replace(/\s+/g, '_')}_risk_report.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportPDF(report: RiskReportDTO) {
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Risk Report — ${report.targetName}</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; padding: 40px; color: #1a1a2e; }
+  h1 { font-size: 24px; margin-bottom: 4px; }
+  .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .RED { background: #fee2e2; color: #dc2626; }
+  .ORANGE { background: #fff7ed; color: #ea580c; }
+  .YELLOW { background: #fef9c3; color: #ca8a04; }
+  .GREEN { background: #dcfce7; color: #16a34a; }
+  table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 13px; }
+  th { text-align: left; padding: 8px; border-bottom: 2px solid #e5e5e5; color: #666; }
+  td { padding: 8px; border-bottom: 1px solid #f0f0f0; }
+  .meta { color: #888; font-size: 11px; margin-top: 8px; }
+</style></head><body>
+<h1>Risk Report: ${report.targetName}</h1>
+<span class="badge ${report.status}">${report.status} RISK — Score: ${report.riskScore}/100</span>
+<p class="meta">Flights: ${report.flightCount} | Evidence items: ${report.evidence.length} | Generated: ${new Date().toLocaleString()}</p>
+<table><thead><tr><th>Source</th><th>Page</th><th>Date</th><th>Snippet</th><th>Sentiment</th></tr></thead>
+<tbody>${report.evidence.map(e => `<tr><td>${e.sourcePdf}</td><td>${e.page}</td><td>${e.date || '-'}</td><td>${e.snippet}</td><td>${e.sentiment || '-'}</td></tr>`).join('')}</tbody></table>
+</body></html>`;
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); w.print(); }
+}
 
 export default function AnalyzePage() {
   const [query, setQuery] = useState('');
@@ -99,6 +156,16 @@ export default function AnalyzePage() {
                 />
               </div>
             </div>
+
+            {/* Export Toolbar */}
+            <div className="export-toolbar">
+              <button className="btn-secondary" onClick={() => exportCSV(report)}>
+                📊 Export CSV
+              </button>
+              <button className="btn-secondary" onClick={() => exportPDF(report)}>
+                📄 Export PDF
+              </button>
+            </div>
           </div>
 
           {/* Evidence */}
@@ -111,14 +178,14 @@ export default function AnalyzePage() {
               {report.evidence.map((item, i) => (
                 <div key={i} className="evidence-item">
                   <div className="evidence-meta">
-                    <div className="source">{item.sourcePdf.length > 20 
-                      ? item.sourcePdf.substring(0, 20) + '...' 
+                    <div className="source">{item.sourcePdf.length > 20
+                      ? item.sourcePdf.substring(0, 20) + '...'
                       : item.sourcePdf}</div>
                     {item.page > 0 && <div className="page">Page {item.page}</div>}
                     {item.date && <div className="page">{item.date}</div>}
                   </div>
                   <div className="evidence-snippet">
-                    {item.snippet}
+                    {highlightName(item.snippet, report.targetName)}
                     {item.sentiment && (
                       <span className={`sentiment-tag ${item.sentiment.toLowerCase()}`}>
                         {item.sentiment}

@@ -13,15 +13,48 @@ interface PersonRepository : Neo4jRepository<Person, Long> {
     fun findAllByNormalizedNameIn(names: Collection<String>): List<Person>
 
     /**
-     * Finds all persons connected to the target within N hops via shared Documents.
-     * A "hop" is: Person → MENTIONED_IN → Document ← MENTIONED_IN ← Person.
-     * Returns distinct connected persons (excluding the target).
+     * Calculates network strength scores using a native Cypher query instead of JVM memory.
+     * Computes co-occurrences, shared flights, and accusatory sentiment overlap.
      */
     @Query("""
-        MATCH (source:Person {normalized_name: ${'$'}name})
-              -[:MENTIONED_IN*1..2]-(connected:Person)
-        WHERE connected <> source
-        RETURN DISTINCT connected
+        MATCH (target:Person {normalized_name: ${'$'}name})
+        MATCH (target)-[:MENTIONED_IN]->(doc:Document)<-[:MENTIONED_IN]-(connected:Person)
+        WHERE connected <> target
+        WITH target, connected, count(DISTINCT doc) AS coOccurrences
+        
+        OPTIONAL MATCH (target)-[tm:MENTIONED_IN]->(:Document)<-[cm:MENTIONED_IN]-(connected)
+        WHERE tm.sentiment = 'ACCUSATORY' AND cm.sentiment = 'ACCUSATORY'
+        WITH target, connected, coOccurrences, count(tm) AS sentimentOverlap
+             
+        OPTIONAL MATCH (target)-[:FLEW_ON]->(fl:FlightLog)<-[:FLEW_ON]-(connected)
+        WITH connected, coOccurrences, sentimentOverlap, count(DISTINCT fl) AS sharedFlights
+        
+        WITH connected, coOccurrences, sharedFlights, sentimentOverlap,
+             (coOccurrences * 1.0 + sharedFlights * 3.0 + sentimentOverlap * 2.0) AS strengthScore
+        ORDER BY strengthScore DESC
+        LIMIT 50
+        RETURN connected.name AS name, 
+               connected.normalized_name AS normalizedName, 
+               coalesce(connected.risk_score, 0) AS riskScore, 
+               strengthScore
     """)
-    fun findConnectedPersons(@Param("name") name: String): List<Person>
+    fun findNetworkStrength(@Param("name") name: String): List<NetworkStrengthProjection>
+
+    /** Fetches a bounded subgraph (top 300 persons) to prevent OutOfMemory errors. */
+    @Query("""
+        MATCH (p:Person)-[m:MENTIONED_IN]->(d:Document)
+        WITH p, collect(m) AS mentions, collect(d) AS docs
+        ORDER BY size(mentions) DESC
+        LIMIT 300
+        RETURN p, mentions, docs
+    """)
+    fun findAllPersonsWithMentionsBounded(): List<Person>
+}
+
+/** Projection interface for Neo4j native query results. */
+interface NetworkStrengthProjection {
+    val name: String
+    val normalizedName: String
+    val riskScore: Int
+    val strengthScore: Double
 }

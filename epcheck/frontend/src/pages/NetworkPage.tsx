@@ -38,6 +38,7 @@ function buildGraphElements(targetName: string, data: NetworkReportDTO) {
         id: `edge-${i}`,
         source: 'target',
         target: `person-${i}`,
+        strength: person.strengthScore || 1,
       },
     });
   });
@@ -96,6 +97,18 @@ const cytoscapeStylesheet: cytoscape.StylesheetCSS[] = [
       'line-color': 'rgba(99, 102, 241, 0.3)',
       'curve-style': 'bezier',
     },
+  },
+  {
+    selector: 'edge[strength >= 3]',
+    css: { 'width': 3, 'line-color': 'rgba(99, 102, 241, 0.5)' },
+  },
+  {
+    selector: 'edge[strength >= 6]',
+    css: { 'width': 5, 'line-color': 'rgba(99, 102, 241, 0.7)' },
+  },
+  {
+    selector: 'edge[strength >= 10]',
+    css: { 'width': 7, 'line-color': 'rgba(168, 85, 247, 0.7)' },
   },
 ];
 
@@ -225,7 +238,10 @@ export default function NetworkPage() {
                       className="source"
                       style={{ color: getNodeColor(person.riskScore) }}
                     >
-                      Score: {person.riskScore}
+                      Risk: {person.riskScore}
+                    </div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                      Strength: {person.strengthScore.toFixed(1)}
                     </div>
                   </div>
                   <div className="evidence-snippet" style={{ fontWeight: 500, color: 'var(--text-primary)' }}>

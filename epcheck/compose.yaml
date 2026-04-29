@@ -1,9 +1,143 @@
+# ──────────────────────────────────────────────────
+# EpsteinLens — Production Docker Compose
+#
+# Profiles:
+#   dev     → Neo4j only (Spring Boot runs locally)
+#   staging → Full stack with debug logging
+#   prod    → Full stack, optimized, with Prometheus + Grafana
+#
+# Usage:
+#   docker compose --profile dev up
+#   docker compose --profile prod up -d
+# ──────────────────────────────────────────────────
+
 services:
+  # ── Neo4j Graph Database ──
   neo4j:
-    image: 'neo4j:latest'
-    container_name: epstein_neo4j
+    image: neo4j:5-community
+    container_name: epsteinlens-neo4j
+    profiles: ["dev", "staging", "prod"]
     environment:
-      - NEO4J_AUTH=neo4j/notverysecret
+      NEO4J_AUTH: "${NEO4J_AUTH:-neo4j/notverysecret}"
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_server_memory_heap_initial__size: "${NEO4J_HEAP:-512m}"
+      NEO4J_server_memory_heap_max__size: "${NEO4J_HEAP:-512m}"
+      NEO4J_server_memory_pagecache_size: "${NEO4J_PAGECACHE:-256m}"
     ports:
-      - '7687:7687'
-      - '7474:7474'
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p $${NEO4J_AUTH##*/} 'RETURN 1' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── Zookeeper (for Kafka) ──
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: epsteinlens-zookeeper
+    profiles: ["staging", "prod"]
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    restart: unless-stopped
+
+  # ── Kafka (Message Broker) ──
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: epsteinlens-kafka
+    profiles: ["staging", "prod"]
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── EpsteinLens Backend + Frontend ──
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: epsteinlens-app
+    profiles: ["staging", "prod"]
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: "${SPRING_PROFILE:-prod}"
+      SPRING_NEO4J_URI: "bolt://neo4j:7687"
+      SPRING_NEO4J_AUTHENTICATION_USERNAME: "neo4j"
+      SPRING_NEO4J_AUTHENTICATION_PASSWORD: "${NEO4J_PASSWORD:-notverysecret}"
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
+      OCR_LANGUAGE: "${OCR_LANGUAGE:-eng}"
+      NER_CONFIDENCE_THRESHOLD: "${NER_CONFIDENCE:-0.60}"
+      JAVA_OPTS: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ── Prometheus (Monitoring) ──
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: epsteinlens-prometheus
+    profiles: ["prod"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Grafana (Dashboards) ──
+  grafana:
+    image: grafana/grafana:latest
+    container_name: epsteinlens-grafana
+    profiles: ["prod"]
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-epsteinlens}"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/epsteinlens.json"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  neo4j-data:
+  neo4j-logs:
+  prometheus-data:
+  grafana-data:
