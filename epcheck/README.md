@@ -208,22 +208,63 @@ epcheck/
 
 ## 🚀 How to Run
 
-### Prerequisites
+EpsteinLens uses **Docker Compose Profiles** to manage different environments. Ensure you have **Docker Desktop** or **Rancher Desktop** running before starting.
 
-- **JDK 21+**
-- **Docker** (for Neo4j) or a local Neo4j 5.x instance
+### 🛠 Option 1: Development Mode (Recommended)
+Use this if you want to run the Spring Boot application locally (for fast debugging/logs) and only the database in Docker.
 
-### Quick Start
+1.  **Start Neo4j**:
+    ```bash
+    docker compose -f epcheck/compose.yaml --profile dev up -d
+    ```
+2.  **Run the App**:
+    ```bash
+    cd epcheck
+    ./gradlew bootRun
+    ```
+    *Access Swagger UI at: `http://localhost:8080/swagger-ui/index.html`*
+
+---
+
+### 📦 Option 2: Full Stack (Staging)
+Use this to run everything (App + Neo4j + Kafka) inside Docker.
+
+1.  **Start Everything**:
+    ```bash
+    docker compose -f epcheck/compose.yaml --profile staging up -d --build
+    ```
+    *This will build the application image and start all services.*
+
+---
+
+### 📂 Option 3: Production
+Optimized stack with monitoring (Prometheus + Grafana).
 
 ```bash
-# 1. Start Neo4j via Docker Compose
-docker compose up -d
+docker compose -f epcheck/compose.yaml --profile prod up -d
+```
 
-# 2. Run the application
-./gradlew bootRun
+---
 
-# 3. Open Swagger UI
-# http://localhost:8080/swagger-ui/index.html
+### 🔧 Troubleshooting (Windows)
+
+**Error: `error during connect: ... elevated privileges to connect`**
+This usually means the Docker daemon is not reachable.
+1.  **Check Docker**: Ensure Docker Desktop or Rancher Desktop is **running**.
+2.  **Permissions**: Open your terminal (PowerShell/CMD) as **Administrator**.
+3.  **Socket Path**: If using Rancher Desktop, ensure the "Docker Compatibility" mode is enabled in settings.
+
+### 🔌 API Usage Examples
+
+```bash
+# Ingest a PDF document (Sync)
+curl -X POST http://localhost:8080/api/ingest -F "file=@document.pdf"
+
+# Ingest a PDF document (Async - Kafka)
+curl -X POST http://localhost:8080/api/ingest/async -F "file=@document.pdf"
+
+# Analyze a person's risk profile
+curl http://localhost:8080/api/analyze/john%20doe
 ```
 
 ### Configuration
@@ -239,8 +280,6 @@ Default settings in `src/main/resources/application.properties`:
 | `ocr.language` | `eng` | Tesseract OCR language |
 | `ner.confidence-threshold` | `0.60` | Minimum NER confidence score (0.0–1.0) |
 | `spring.servlet.multipart.max-file-size` | `50MB` | Max upload size |
-
-### API Usage
 
 ```bash
 # Ingest a PDF document
